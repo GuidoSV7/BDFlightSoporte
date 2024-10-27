@@ -11,8 +11,6 @@ END
 Use Flight;
 
 
---Select PAÍS from PaisesExcel;
-
 -- Verificación y creación de la tabla Country
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[Country]') AND type in (N'U'))
 BEGIN
@@ -39,7 +37,7 @@ IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[Ai
 BEGIN
     CREATE TABLE Airline(
         id INT PRIMARY KEY IDENTITY(1,1),
-        Name VARCHAR(100)
+        Name VARCHAR(300)
     );
 END
 GO
@@ -195,7 +193,6 @@ IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[Cr
 BEGIN
     CREATE TABLE Crew (
         id INT PRIMARY KEY IDENTITY(1,1),
-  Name varchar(50),
         idEmployee INT,
         FOREIGN KEY (idEmployee) REFERENCES Employee(id) 
    ON UPDATE CASCADE 
@@ -245,12 +242,8 @@ BEGIN
         Gate VARCHAR(50),
         CheckInCounter VARCHAR(50),
         idFlightNumber INT,
-        idCrew INT,
 		 idAirPlane INT,
         FOREIGN KEY (idFlightNumber) REFERENCES FlightNumber(id)
-            ON UPDATE NO ACTION
-            ON DELETE NO ACTION,
-        FOREIGN KEY (idCrew) REFERENCES Crew(id)
             ON UPDATE NO ACTION
             ON DELETE NO ACTION,
         FOREIGN KEY (idAirPlane) REFERENCES AirPlane(id)
@@ -267,17 +260,14 @@ IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[Ti
 BEGIN
     CREATE TABLE Ticket (
         id INT PRIMARY KEY IDENTITY(1,1),
-  TicketingCode INT,
+		TicketingCode INT,
+		Number INT,
         idCustomer INT,
-        idFlight INT,
         idTicketClass INT,
         FOREIGN KEY (idCustomer) REFERENCES Customer(id)
             ON UPDATE CASCADE
             ON DELETE CASCADE,
-        FOREIGN KEY(idFlight) REFERENCES Flight(id)
-            ON UPDATE CASCADE
-            ON DELETE CASCADE,
-  FOREIGN KEY (idTicketClass) REFERENCES TicketClass(id)
+		FOREIGN KEY (idTicketClass) REFERENCES TicketClass(id)
             ON UPDATE CASCADE
             ON DELETE CASCADE,
     );
@@ -287,7 +277,7 @@ GO
 
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[FrequentFlyerCard]') AND type in (N'U'))
 BEGIN
-    CREATE TABLE Refound (
+    CREATE TABLE Refund (
         id INT PRIMARY KEY IDENTITY(1,1),
         Amount INT,
         Date Date,
@@ -299,20 +289,7 @@ BEGIN
 END
 GO
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+select * from country;
 
 -- Creación de la tabla Payment
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[Payment]') AND type in (N'U'))
@@ -320,7 +297,7 @@ BEGIN
     CREATE TABLE Payment (
         id INT PRIMARY KEY IDENTITY(1,1),
         Amount DECIMAL(10, 2),
-  Date date,
+		Date date,
         idTicket INT,
         idPaymentMethod INT,
         FOREIGN KEY (idTicket) REFERENCES Ticket(id) 
@@ -483,34 +460,6 @@ GO
 
 
 
-
-
-
-
-
-IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[FlightDelay]') AND type in (N'U'))
-BEGIN
-    CREATE TABLE FlightDelay (
-        id INT PRIMARY KEY IDENTITY(1,1),
-  Duration int,
-  Reason varchar(50),
-        idFlight INT,
-        FOREIGN KEY (idFlight) REFERENCES Flight(id) 
-   ON UPDATE CASCADE 
-   ON DELETE CASCADE,
-    );
-END
-GO
-
-
-
-
-
-
-
-
-
-
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[Fine]') AND type in (N'U'))
  BEGIN
  CREATE TABLE Fine(
@@ -560,6 +509,28 @@ BEGIN
        
     );
 END
+
+GO
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[Document]') AND type in (N'U'))
+BEGIN
+    CREATE TABLE AvalibleSeat (
+        id INT PRIMARY KEY IDENTITY(1,1),
+		idSeat int,
+		idFlight int,
+        FOREIGN KEY (idSeat) REFERENCES Seat(id)
+            ON UPDATE CASCADE
+            ON DELETE CASCADE,
+	   FOREIGN KEY (idFlight) REFERENCES Flight(id)
+            ON UPDATE CASCADE
+            ON DELETE CASCADE,
+       
+    );
+END
+
+GO
+
+
+
 GO
 
 
@@ -613,32 +584,98 @@ go
 
 
 
-INSERT INTO Airport (Name, idCountry, idAirline)
-VALUES
-('John F. Kennedy International Airport', 1, 2),
-('Los Angeles International Airport', 1, 1),
-('Heathrow Airport', 2, 3),
-('Tokyo Haneda Airport', 1, 3),
-('Sydney Airport',3, 1);
+BEGIN TRY
+    BEGIN TRANSACTION;
+
+    DECLARE @RandomName NVARCHAR(255); -- Asegúrate de que el tipo de dato sea adecuado para los nombres
+	DECLARE @RandomCountry INT;
+	DECLARE @RandomAirline INT;
+
+
+    DECLARE @i INT = 1;
+
+    WHILE @i <= 500
+    BEGIN
+        -- Selecciona un nombre aleatorio en cada iteración
+        SELECT TOP 1 @RandomName = Nombres FROM NombresPersonasExcel ORDER BY NEWID();
+        SELECT TOP 1 @RandomCountry = id FROM Country ORDER BY NEWID();
+        SELECT TOP 1 @RandomAirline = id FROM Airline ORDER BY NEWID();
+        INSERT INTO Airport (Name, idCountry, idAirline)
+        VALUES (
+            @RandomName,
+			@RandomCountry,
+			@RandomAirline
+            
+        );
+        
+        SET @i = @i + 1;
+    END
+
+    -- Si todo sale bien, hacemos commit de la transacción
+    COMMIT TRANSACTION;
+    PRINT 'Transacción completada con éxito.';
+    
+END TRY
+BEGIN CATCH
+    -- Si ocurre algún error, hacemos rollback para deshacer todos los cambios
+    ROLLBACK TRANSACTION;
+    PRINT 'Error en la transacción. Todos los cambios fueron revertidos.';
+    -- Opcional: Mostrar el error
+    THROW;
+END CATCH;
 
 go
 
-INSERT INTO FlightNumber (DepartureTime, Description, Type, idAirline, idAirportStart, idAirportGol) 
-VALUES ('08:30:00', 'Flight to New York', 'International', 1, 1, 2);
 
-go
-INSERT INTO FlightNumber (DepartureTime, Description, Type, idAirline, idAirportStart, idAirportGol) 
-VALUES ('09:45:00', 'Flight to Toronto', 'International', 2, 2, 3);
+BEGIN TRY
+    BEGIN TRANSACTION;
 
-go
-INSERT INTO FlightNumber (DepartureTime, Description, Type, idAirline, idAirportStart, idAirportGol) 
-VALUES ('11:00:00', 'Flight to Mexico City', 'International', 3, 3, 1);
-go
+    DECLARE @RandomAirportStart INT;
+    DECLARE @RandomAirportGol INT;
+    DECLARE @RandomAirline INT;
+    DECLARE @DepartureTime DATETIME;
+    DECLARE @i INT = 1;
 
+    WHILE @i <= 500
+    BEGIN
+        -- Selecciona aeropuertos y aerolínea aleatoria en cada iteración
+        SELECT TOP 1 @RandomAirportStart = id FROM Airport ORDER BY NEWID();
+        SELECT TOP 1 @RandomAirportGol = id FROM Airport ORDER BY NEWID();
+        SELECT TOP 1 @RandomAirline = id FROM Airline ORDER BY NEWID();
 
-INSERT INTO Crew (Name, idEmployee) VALUES ('Crew John', 1);
-INSERT INTO Crew (Name, idEmployee) VALUES ('Crew Jane', 2);
-INSERT INTO Crew (Name, idEmployee) VALUES ('Crew Mike', 3);
+        -- Genera un DepartureTime aleatorio en las próximas 30 días
+        SET @DepartureTime = DATEADD(DAY, (RAND() * 30), GETDATE()); -- Fecha aleatoria en los próximos 30 días
+        SET @DepartureTime = DATEADD(HOUR, (RAND() * 24), @DepartureTime); -- Agrega horas aleatorias
+        SET @DepartureTime = DATEADD(MINUTE, (RAND() * 60), @DepartureTime); -- Agrega minutos aleatorios
+
+        -- Inserta los valores en FlightNumber
+        INSERT INTO FlightNumber (DepartureTime, Description, Type, idAirline, idAirportStart, idAirportGol)
+        VALUES (
+            @DepartureTime,
+            'Vuelo de prueba ' + CAST(@i AS NVARCHAR(10)), -- Descripción dinámica
+            'Comercial', -- Tipo de vuelo
+            @RandomAirline,
+            @RandomAirportStart,
+            @RandomAirportGol
+        );
+        
+        SET @i = @i + 1;
+    END
+
+    -- Si todo sale bien, hacemos commit de la transacción
+    COMMIT TRANSACTION;
+    PRINT 'Transacción completada con éxito.';
+    
+END TRY
+BEGIN CATCH
+    -- Si ocurre algún error, hacemos rollback para deshacer todos los cambios
+    ROLLBACK TRANSACTION;
+    PRINT 'Error en la transacción. Todos los cambios fueron revertidos.';
+    -- Opcional: Mostrar el error
+    THROW;
+END CATCH;
+GO
+
 
 go
 INSERT INTO PlaneModel (Description, Graphic)
@@ -664,28 +701,26 @@ go
 BEGIN TRANSACTION;
 
 BEGIN TRY
-    DECLARE @RandomFlightNumber INT, @RandomCrew INT, @RandomAirPlane INT;
+    DECLARE @RandomFlightNumber INT, @RandomAirPlane INT;
 
     DECLARE @i INT = 1;
     WHILE @i <= 2000
     BEGIN
         -- Seleccionar FlightNumber, Crew y AirPlane aleatoriamente en cada iteración
         SELECT TOP 1 @RandomFlightNumber = id FROM FlightNumber ORDER BY NEWID();
-        SELECT TOP 1 @RandomCrew = id FROM Crew ORDER BY NEWID();
         SELECT TOP 1 @RandomAirPlane = id FROM AirPlane ORDER BY NEWID();
 
         -- Generar una hora aleatoria para BoardingTime
         DECLARE @RandomTime TIME = DATEADD(SECOND, ROUND(RAND() * 86400, 0), '00:00:00'); -- 86400 segundos en un día
 
         -- Insertar los datos
-        INSERT INTO Flight (BoardingTime, FlightDate, Gate, CheckInCounter, idFlightNumber, idCrew, idAirPlane)
+        INSERT INTO Flight (BoardingTime, FlightDate, Gate, CheckInCounter, idFlightNumber, idAirPlane)
         VALUES (
             @RandomTime, -- Hora de embarque aleatoria
             DATEADD(DAY, ABS(CHECKSUM(NEWID())) % 30, GETDATE()), -- Fecha aleatoria dentro de los próximos 30 días
             'Gate ' + CAST(ROUND(RAND() * 20, 0) AS VARCHAR(2)), -- Número de gate aleatorio
             'Counter ' + CAST(ROUND(RAND() * 10, 0) AS VARCHAR(2)), -- Número de counter aleatorio
             @RandomFlightNumber, -- FlightNumber aleatorio
-            @RandomCrew, -- Crew aleatorio
             @RandomAirPlane -- AirPlane aleatorio
         );
         SET @i = @i + 1;
@@ -739,71 +774,226 @@ go
 
 
 go
-INSERT INTO Seat (Size, idPlaneModel) VALUES
-( 0, 3),
-( 10, 2),
-( 10, 4),
-( 20, 5),
-( 40, 1);
+BEGIN TRY
+    BEGIN TRANSACTION;
 
-go
-INSERT INTO AvailableSeat (idSeat, idFlight) VALUES
-( 2, 1),
-( 3, 1),
-( 4, 2),
-( 2, 2),
-( 3, 3);
+    DECLARE @PlaneModelID INT;
+    DECLARE @i INT;
 
-go
+    -- Crea un cursor para recorrer todos los modelos de avión
+    DECLARE PlaneModelCursor CURSOR FOR
+    SELECT id FROM PlaneModel;
+
+    OPEN PlaneModelCursor;
+    FETCH NEXT FROM PlaneModelCursor INTO @PlaneModelID;
+
+    WHILE @@FETCH_STATUS = 0
+    BEGIN
+        SET @i = 1;
+
+        WHILE @i <= 50
+        BEGIN
+            INSERT INTO Seat (Size, idPlaneModel)
+            VALUES (
+                (10 + ((@i - 1) * 2) % 40), -- Tamaño del asiento variado
+                @PlaneModelID
+            );
+
+            SET @i = @i + 1;
+        END
+
+        FETCH NEXT FROM PlaneModelCursor INTO @PlaneModelID;
+    END
+
+    CLOSE PlaneModelCursor;
+    DEALLOCATE PlaneModelCursor;
+
+    -- Si todo sale bien, se realiza el commit de la transacción
+    COMMIT TRANSACTION;
+    PRINT 'Transacción completada con éxito.';
+
+END TRY
+BEGIN CATCH
+    -- Si ocurre algún error, se deshacen todos los cambios
+    ROLLBACK TRANSACTION;
+    PRINT 'Error en la transacción. Todos los cambios fueron revertidos.';
+    -- Opcional: Mostrar el error
+    THROW;
+END CATCH;
+GO
 
 
 go
 INSERT INTO CustomerClass (ClassName, Discount, idBenefit) VALUES
-('Class1', 10,1),
-('Class2', 30,3),
-('Class3', 50,4),
-('Class4', 20,2),
-('Class5', 10,5);
+('Standard', 5, 1),     -- Descuento básico, beneficio general
+('Silver', 10, 2),      -- Descuento moderado, beneficio intermedio
+('Gold', 15, 3),        -- Descuento considerable, beneficios superiores
+('Platinum', 20, 4),    -- Descuento alto, beneficios premium
+('VIP', 25, 5);         -- Máximo descuento y beneficios exclusivos
+
 
 go
-INSERT INTO Customer (Name, idCustomerClass) VALUES
-('Name1',1),
-('Name2',3),
-('Name3',4),
-('Name4',2),
-('Name5',5);
+
 
 go
-INSERT INTO Document (Title, Image, idCustomer) VALUES
-('Titulo1', null,1),
-('Titulo2', null,3),
-('Titulo3', null,4),
-('Titulo4', null,2),
-('Titulo5', null,5);
+BEGIN TRY
+    BEGIN TRANSACTION;
+
+    DECLARE @RandomName NVARCHAR(255); -- Asegúrate de que el tipo de dato sea adecuado para los nombres
+	DECLARE @RandomCustomerClass INT;
+
+
+
+    DECLARE @i INT = 1;
+
+    WHILE @i <= 1500
+    BEGIN
+        -- Selecciona un nombre aleatorio en cada iteración
+        SELECT TOP 1 @RandomName = Nombres FROM NombresPersonasExcel ORDER BY NEWID();
+        SELECT TOP 1 @RandomCustomerClass = id FROM CustomerClass ORDER BY NEWID();
+
+        INSERT INTO Customer (Name, idCountry, idAirline)
+        VALUES (
+            @RandomName,
+			@RandomCustomerClass,
+            
+        );
+        
+        SET @i = @i + 1;
+    END
+
+    -- Si todo sale bien, hacemos commit de la transacción
+    COMMIT TRANSACTION;
+    PRINT 'Transacción completada con éxito.';
+    
+END TRY
+BEGIN CATCH
+    -- Si ocurre algún error, hacemos rollback para deshacer todos los cambios
+    ROLLBACK TRANSACTION;
+    PRINT 'Error en la transacción. Todos los cambios fueron revertidos.';
+    -- Opcional: Mostrar el error
+    THROW;
+END CATCH;
+go
 
 go
-INSERT INTO City (Name,idCountry) VALUES
-('Ciudad1',5),
-('Ciudad2',2),
-('Ciudad3',3),
-('Ciudad4',4),
-('Ciudad5',5);
+
+select * from Document
+BEGIN TRY
+    BEGIN TRANSACTION;
+
+    DECLARE @CustomerID INT;
+    DECLARE @Title NVARCHAR(50);
+    
+    -- Verifica y cierra cualquier cursor previo con el mismo nombre
+    IF CURSOR_STATUS('global', 'CustomerCursor') >= -1
+    BEGIN
+        CLOSE CustomerCursor;
+        DEALLOCATE CustomerCursor;
+    END
+
+    -- Crea un cursor para recorrer todos los clientes en la tabla Customer
+    DECLARE CustomerCursor CURSOR FOR
+    SELECT id FROM Customer;
+
+    OPEN CustomerCursor;
+    FETCH NEXT FROM CustomerCursor INTO @CustomerID;
+
+    WHILE @@FETCH_STATUS = 0
+    BEGIN
+        -- Asigna un título dinámico para cada documento
+        SET @Title = 'Documento para Cliente ' + CAST(@CustomerID AS NVARCHAR(10));
+        
+        -- Inserta el documento con la imagen NULL para el cliente actual
+        INSERT INTO Document (Title, Image, idCustomer)
+        VALUES (@Title, NULL, @CustomerID);
+        
+        FETCH NEXT FROM CustomerCursor INTO @CustomerID;
+    END
+
+    CLOSE CustomerCursor;
+    DEALLOCATE CustomerCursor;
+
+    -- Si todo se ejecuta correctamente, confirma la transacción
+    COMMIT TRANSACTION;
+    PRINT 'Transacción completada con éxito.';
+
+END TRY
+BEGIN CATCH
+    -- Si ocurre un error, deshaz todos los cambios
+    ROLLBACK TRANSACTION;
+    PRINT 'Error en la transacción. Todos los cambios fueron revertidos.';
+    -- Opcional: Mostrar el error
+    THROW;
+END CATCH;
+GO
+
+
+go
+
+SELECT * FROM CITY
+
+
+BEGIN TRY
+    BEGIN TRANSACTION;
+
+    DECLARE @CountryID INT;
+    DECLARE @CityName NVARCHAR(50);
+    
+    -- Verifica y cierra cualquier cursor previo con el mismo nombre
+    IF CURSOR_STATUS('global', 'CountryCursor') >= -1
+    BEGIN
+        CLOSE CountryCursor;
+        DEALLOCATE CountryCursor;
+    END
+
+    -- Crea un cursor para recorrer todos los países en la tabla Country
+    DECLARE CountryCursor CURSOR FOR
+    SELECT id FROM Country;
+
+    OPEN CountryCursor;
+
+    -- Itera sobre cada país
+    FETCH NEXT FROM CountryCursor INTO @CountryID;
+
+    WHILE @@FETCH_STATUS = 0
+    BEGIN
+
+        SELECT TOP 1 @CityName = CAPITAL FROM PaisesExcel ORDER BY NEWID();
+
+        INSERT INTO City (Name, idCountry)
+        VALUES (@CityName, @CountryID);
+        
+        FETCH NEXT FROM CountryCursor INTO @CountryID;
+    END
+
+    CLOSE CountryCursor;
+    DEALLOCATE CountryCursor;
+
+    COMMIT TRANSACTION;
+    PRINT 'Transacción completada con éxito.';
+
+END TRY
+
+
+BEGIN CATCH
+    ROLLBACK TRANSACTION;
+    PRINT 'Error en la transacción. Todos los cambios fueron revertidos.';
+    THROW;
+END CATCH;
+GO
+
 
 go
 INSERT INTO AirlineService (Name,idAirline,idService ,idTicketClass) VALUES
-('Ciudad1',5,1,1),
-('Ciudad2',2,5,4),
-('Ciudad3',3,2,3),
-('Ciudad4',4,5,2),
-('Ciudad5',5,5,5);
+('Servicio1',5,1,1),
+('Servicio2',2,5,4),
+('Servicio3',3,2,3),
+('Servicio4',4,5,2),
+('Servicio5',5,5,5);
 
 go
-INSERT INTO FlightDelay (Duration,Reason,idFlight) VALUES
-('3','Reason1',1),
-('2','Reason2',2),
-('1','Reason3',3),
-('4','Reason4',4),
-('5','Reason5',5);
+
 
 
 INSERT INTO Survey (Date,Rating,idFlight,idCustomer) VALUES
